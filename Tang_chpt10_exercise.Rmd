@@ -1,0 +1,176 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+```{r}
+rm(list = ls())
+
+library(dplyr)
+library(mosaic)
+library(ggplot2)
+set.seed(1976)
+```
+
+# 10.2
+```{r}
+jobs_true <- 150 
+jobs_se <- 65 # in thousands of jobs
+gen_samp <- function(true_mean,
+                     true_sd,
+                     num_months = 12,
+                     delta = 0, 
+                     id = 1) { 
+  samp_year <- rep(true_mean, num_months) + 
+    rnorm(num_months, mean = delta * (1:num_months), sd = true_sd)
+  return(data.frame(jobs_number = samp_year,
+                    month = as.factor(1:num_months), 
+                    id = id))
+  }
+```
+
+```{r}
+n_sims <- 1
+params <- data.frame(sd = c(0, rep(jobs_se, n_sims)),
+id = c("Truth", paste("Sample", 1:n_sims)))
+params
+```
+
+```{r}
+df <- params %>%
+group_by(id) %>%
+do(gen_samp(true_mean = jobs_true, 
+            true_sd = .$sd,
+            id = .$id))
+df
+```
+
+```{r}
+ggplot(data = df, aes(x = month, y = jobs_number)) +
+geom_hline(yintercept = jobs_true, linetype = 2) +
+geom_bar(stat = "identity") +
+facet_wrap(~ id) + ylab("Number of new jobs (in thousands)")
+```
+From the result, we can say that the results from simulation are not quiet close to the truth.
+
+
+
+
+
+# 10.4
+```{r}
+dosim4 <- function(method, numsims) {
+  doors <- c(1, 2, 3)
+  winning <- 0
+  for (i in 1:numsims) {
+    RightDoor <- floor(runif(1, 
+                         min = 1,
+                         max = 4))
+    player <-floor(runif(1,
+                         min = 1,
+                         max = 4))
+    if (player != RightDoor) {
+      show <- doors[-c(RightDoor, player)]
+    } else {
+      show <- sample(doors[-c(RightDoor, player)], 1)
+    } 
+    
+    if (method == "Switch") {
+      choice <- doors[-c(show, player)]
+    } else if (method == "Original") {
+      choice <- player
+    } 
+    
+    if (choice == RightDoor) {
+      winning <- winning + 1
+    }
+  }
+  return(winning/numsims)
+}
+
+
+```
+
+```{r}
+a = dosim4(method="Switch", 10000)
+a
+```
+
+
+```{r}
+b = dosim4(method="Original", 10000)
+b
+```
+Based on the simulation, we can say that switching door is a better option, where the winning rate is 66.78%, and the winning rate for keeping the original door is 34.14%.
+
+# 10.7
+```{r}
+n <- 250 
+rmse <- 1 
+x1 <- rep(c(0,1), each=n/2) # x1 resembles 0 0 0 ... 1 1 1
+x2 <- runif(n, min=0, max=5)
+beta0 <- -1
+beta1 <- 0.5
+beta2 <- 1.5 
+y <- beta0 + beta1*x1 + beta2*x2 + rexp(n, rate=1/2)
+
+```
+
+```{r}
+data.frame(y, x1) %>%
+  ggplot(aes(x = x1, y = y)) + 
+  geom_point() +
+  geom_smooth()
+```
+
+```{r}
+smlt=function(){
+  n <- 250
+  rmse <- 1
+  x1 <- rep(c(0,1), each=n/2) # x1 resembles 0 0 0 ... 1 1 1
+  x2 <- runif(n, min=0, max=5)
+  beta0 <- -1
+  beta1 <- 0.5
+  beta2 <- 1.5
+  y <- beta0 + beta1*x1 + beta2*x2 + rexp(n, rate=1/2)
+  return(data.frame(y,x1,x2))
+}
+```
+
+
+```{r}
+dosims=function(){
+  dat=gem_data()
+  fit=lm(y~x1+x2,data=dat)
+  return(coef(fit)[2])
+}
+```
+
+```{r}
+sims <- mosaic::do(1000) * dosims()
+favstats(~ x1, data = sims)
+```
+
+
+```{r}
+dt=smlt()
+fit=lm(y~x1+x2,data=dt)
+plot(fit,which=2)
+```
+```{r}
+mplot(fit)[1]
+```
+
+Based on the graph, they are still being the same distribution. The normality assumption is violated. 
+
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
